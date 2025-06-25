@@ -23,15 +23,7 @@ jobs:
             -e "ssh -o StrictHostKeyChecking=no" \
             ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/home/${{ secrets.SERVER_USER }}/pokerbotsboras_tmp
 
-      - name: Move files to /opt, set up venv, install requirements, restart service
+      - name: Run deploy script on server
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'ENDSSH'
-            sudo mkdir -p /opt/pokerbotsboras
-            sudo cp -r /home/${{ secrets.SERVER_USER }}/pokerbotsboras_tmp/* /opt/pokerbotsboras/
-            cd /opt/pokerbotsboras
-            python3 -m venv venv
-            source venv/bin/activate
-            pip install --upgrade pip
-            if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-            sudo systemctl restart pokerbots.service
-          ENDSSH
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} \
+            "sudo /home/${{ secrets.SERVER_USER }}/deploy_pokerbots.sh"
