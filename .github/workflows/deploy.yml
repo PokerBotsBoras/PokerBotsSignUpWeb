@@ -17,15 +17,17 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
 
-      - name: Rsync files to server
+      - name: Rsync files to home directory on server
         run: |
           rsync -avz --delete \
             -e "ssh -o StrictHostKeyChecking=no" \
-            ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/opt/pokerbotsboras
+            ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/home/${{ secrets.SERVER_USER }}/pokerbotsboras_tmp
 
-      - name: Set up venv, install requirements, restart service
+      - name: Move files to /opt, set up venv, install requirements, restart service
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'ENDSSH'
+            sudo mkdir -p /opt/pokerbotsboras
+            sudo cp -r /home/${{ secrets.SERVER_USER }}/pokerbotsboras_tmp/* /opt/pokerbotsboras/
             cd /opt/pokerbotsboras
             python3 -m venv venv
             source venv/bin/activate
