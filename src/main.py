@@ -234,7 +234,6 @@ class ResultItem(BaseModel):
     BotBWins: int
 
 class ResultsPayload(BaseModel):
-    Secret: str
     Date: str = Field(..., example="2025-06-26T15:42:00Z")
     Results: List[ResultItem]
 
