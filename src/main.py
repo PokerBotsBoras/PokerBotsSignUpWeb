@@ -9,6 +9,9 @@ from github import Github
 import asyncio
 from github import GithubException
 from contextlib import asynccontextmanager
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -170,10 +173,11 @@ async def callback(request: Request):
 async def poll_for_new_members():
     while True:
         try:
-            print("[Poller] Checking for new members...")
+            logger.info("[Poller] Checking for new members...")
 
             g = Github(GITHUB_BOT_TOKEN)
             org = g.get_organization(GITHUB_ORG_NAME)
+            template_repo = org.get_repo("BotTemplate")
 
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
@@ -184,12 +188,12 @@ async def poll_for_new_members():
                 try:
                     user = g.get_user(username)
                     if org.has_in_members(user):
-                        print(f"[Poller] {username} is a confirmed member. Creating repo...")
+                        logger.info(f"[Poller] {username} is a confirmed member. Creating repo...")
 
-                        template_repo = org.get_repo("BotTemplate")
-                        new_repo = template_repo.create_using_template(
-                            name=f"{username}-bot",
-                            owner=GITHUB_ORG_NAME,
+                        repo_name = f"{username}-bot"
+                        new_repo = org.create_repo_from_template(
+                            name=repo_name,
+                            repo=template_repo,
                             private=True,
                             include_all_branches=False
                         )
@@ -197,17 +201,17 @@ async def poll_for_new_members():
                         new_repo.add_to_collaborators(username, permission="admin")
                         c.execute("UPDATE users SET has_repo = 1 WHERE github_username = ?", (username,))
                         conn.commit()
+                        logger.info(f"Repository '{repo_name}' created and '{username}' added as admin.")
                     else:
-                        print(f"[Poller] {username} hasn't accepted the invite yet.")
+                        logger.info(f"[Poller] {username} hasn't accepted the invite yet.")
                 except GithubException as e:
-                    print(f"[Poller] Error processing {username}: {e}")
+                    logger.info(f"[Poller] Error processing {username}: {e}")
 
             conn.close()
 
         except Exception as e:
-            print(f"[Poller] Unexpected error: {e}")
+            logger.info(f"[Poller] Unexpected error: {e}")
         finally:
-            # Always sleep regardless of outcome
             await asyncio.sleep(150)
 
 
