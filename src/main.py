@@ -1,5 +1,5 @@
 import sqlite3
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Body, Header
 from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
@@ -10,6 +10,11 @@ import asyncio
 from github import GithubException
 from contextlib import asynccontextmanager
 import logging
+from pydantic import BaseModel, Field
+from typing import List
+from tinydb import TinyDB
+from datetime import datetime
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -22,6 +27,10 @@ GITHUB_ORG_NAME = "PokerBotsBoras"
 GITHUB_BOT_TOKEN = os.getenv("GITHUB_POKERBOTS_ORG_SECRET")
 
 DB_PATH = "users.db"
+RESULTS_DB_PATH = "results.json"
+
+# TinyDB setup
+results_db = TinyDB(RESULTS_DB_PATH)
 
 
 def init_db():
@@ -215,6 +224,41 @@ async def poll_for_new_members():
         finally:
             await asyncio.sleep(150)
 
+
+
+# Pydantic models for validation
+class ResultItem(BaseModel):
+    BotA: str
+    BotB: str
+    BotAWins: int
+    BotBWins: int
+
+class ResultsPayload(BaseModel):
+    Secret: str
+    Date: str = Field(..., example="2025-06-26T15:42:00Z")
+    Results: List[ResultItem]
+
+RESULTS_SECRET = os.getenv("RESULTS_SECRET")
+
+@app.post("/api/results")
+async def save_results(
+    payload: ResultsPayload = Body(...),
+    x_secret: str = Header(None)
+):
+    # Secret check from header
+    if x_secret != RESULTS_SECRET:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    # Validate date
+    try:
+        dt = datetime.fromisoformat(payload.Date.replace("Z", "+00:00"))
+    except Exception:
+        return JSONResponse({"error": "Invalid date format"}, status_code=400)
+    # Save to TinyDB
+    results_db.insert({
+        "Date": payload.Date,
+        "Results": [item.dict() for item in payload.Results]
+    })
+    return {"status": "ok"}
 
 
 static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "www"))
