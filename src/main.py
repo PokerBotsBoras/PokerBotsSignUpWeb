@@ -240,7 +240,7 @@ class ResultsPayload(BaseModel):
 
 RESULTS_SECRET = os.getenv("RESULTS_SECRET")
 
-@app.post("/api/results")
+@app.post("/results")
 async def save_results(
     payload: ResultsPayload = Body(...),
     x_secret: str = Header(None)
