@@ -190,7 +190,8 @@ async def poll_for_new_members():
                     if org.has_in_members(user):
                         logger.info(f"[Poller] {username} is a confirmed member. Creating repo...")
 
-                        repo_name = f"{username}-bot"
+                        # the bot prefix is important
+                        repo_name = f"bot-{username}"
                         new_repo = org.create_repo_from_template(
                             name=repo_name,
                             repo=template_repo,
