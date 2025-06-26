@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 import os
+import json
 import httpx
 from github import Github
 import asyncio
@@ -14,6 +15,7 @@ from pydantic import BaseModel, Field
 from typing import List
 from tinydb import TinyDB
 from datetime import datetime
+from ratings import get_final_ratings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -244,20 +246,34 @@ async def save_results(
     payload: ResultsPayload = Body(...),
     x_secret: str = Header(None)
 ):
-    # Secret check from header
     if x_secret != RESULTS_SECRET:
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
-    # Validate date
+
     try:
         dt = datetime.fromisoformat(payload.Date.replace("Z", "+00:00"))
     except Exception:
         return JSONResponse({"error": "Invalid date format"}, status_code=400)
-    # Save to TinyDB
+
+    result_dicts = [item.dict() for item in payload.Results]
+
+    # Save results to DB
     results_db.insert({
         "Date": payload.Date,
-        "Results": [item.dict() for item in payload.Results]
+        "Results": result_dicts
     })
-    return {"status": "ok"}
+
+    # Calculate final ratings
+    final_ratings = get_final_ratings(result_dicts)
+
+    # Save to ../www/ratings.json
+    ratings_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "www", "ratings.json"))
+    with open(ratings_path, "w") as f:
+        json.dump(final_ratings, f, indent=2)
+
+    return {
+        "status": "ok",
+        "ratings": final_ratings
+    }
 
 
 static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "www"))
