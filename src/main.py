@@ -6,10 +6,11 @@ from dotenv import load_dotenv
 import os
 import httpx
 from github import Github
+import asyncio
+from github import GithubException
+from contextlib import asynccontextmanager
 
 load_dotenv()
-
-app = FastAPI()
 
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
@@ -17,7 +18,6 @@ GITHUB_REDIRECT_URI = os.getenv("GITHUB_REDIRECT_URI")
 GITHUB_ORG_NAME = "PokerBotsBoras"
 GITHUB_BOT_TOKEN = os.getenv("GITHUB_POKERBOTS_ORG_SECRET")
 
-# --- SQLite setup ---
 DB_PATH = "users.db"
 
 
@@ -32,7 +32,8 @@ def init_db():
             email TEXT,
             name TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            joined_org_at TIMESTAMP
+            joined_org_at TIMESTAMP,
+            has_repo INTEGER DEFAULT 0
         )
     """
     )
@@ -72,6 +73,18 @@ def set_joined_org_date(github_username):
     conn.commit()
     conn.close()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(poll_for_new_members())
+    yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+app = FastAPI(lifespan=lifespan)
 
 @app.get("/auth/login")
 async def login():
@@ -153,6 +166,49 @@ async def callback(request: Request):
             "invite_status": invite_status
         }
     )
+
+async def poll_for_new_members():
+    while True:
+        print("[Poller] Checking for new members...")
+
+        g = Github(GITHUB_BOT_TOKEN)
+        org = g.get_organization(GITHUB_ORG_NAME)
+
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT github_username FROM users WHERE joined_org_at IS NOT NULL AND has_repo = 0")
+        users = c.fetchall()
+
+        for (username,) in users:
+            try:
+                user = g.get_user(username)
+                if org.has_in_members(user):
+                    print(f"[Poller] {username} is a confirmed member. Creating repo...")
+
+                    # Create repo from template
+                    template_repo = org.get_repo("BotTemplate") 
+                    new_repo = template_repo.create_using_template(
+                        name=f"{username}-starter",
+                        owner=GITHUB_ORG_NAME,
+                        private=True,
+                        include_all_branches=False
+                    )
+
+                    # Add them to the new repo
+                    new_repo.add_to_collaborators(username, permission="admin")
+
+                    # Update DB
+                    c.execute("UPDATE users SET has_repo = 1 WHERE github_username = ?", (username,))
+                    conn.commit()
+                else:
+                    print(f"[Poller] {username} hasn't accepted the invite yet.")
+            except GithubException as e:
+                print(f"[Poller] Error processing {username}: {e}")
+
+        conn.close()
+
+        await asyncio.sleep(300)  # Wait 5 minutes
+
 
 static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "www"))
 app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
