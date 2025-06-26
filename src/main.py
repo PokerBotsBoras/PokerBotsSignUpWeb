@@ -169,45 +169,47 @@ async def callback(request: Request):
 
 async def poll_for_new_members():
     while True:
-        print("[Poller] Checking for new members...")
+        try:
+            print("[Poller] Checking for new members...")
 
-        g = Github(GITHUB_BOT_TOKEN)
-        org = g.get_organization(GITHUB_ORG_NAME)
+            g = Github(GITHUB_BOT_TOKEN)
+            org = g.get_organization(GITHUB_ORG_NAME)
 
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("SELECT github_username FROM users WHERE joined_org_at IS NOT NULL AND has_repo = 0")
-        users = c.fetchall()
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("SELECT github_username FROM users WHERE joined_org_at IS NOT NULL AND has_repo = 0")
+            users = c.fetchall()
 
-        for (username,) in users:
-            try:
-                user = g.get_user(username)
-                if org.has_in_members(user):
-                    print(f"[Poller] {username} is a confirmed member. Creating repo...")
+            for (username,) in users:
+                try:
+                    user = g.get_user(username)
+                    if org.has_in_members(user):
+                        print(f"[Poller] {username} is a confirmed member. Creating repo...")
 
-                    # Create repo from template
-                    template_repo = org.get_repo("BotTemplate") 
-                    new_repo = template_repo.create_using_template(
-                        name=f"{username}-starter",
-                        owner=GITHUB_ORG_NAME,
-                        private=True,
-                        include_all_branches=False
-                    )
+                        template_repo = org.get_repo("BotTemplate")
+                        new_repo = template_repo.create_using_template(
+                            name=f"{username}-bot",
+                            owner=GITHUB_ORG_NAME,
+                            private=True,
+                            include_all_branches=False
+                        )
 
-                    # Add them to the new repo
-                    new_repo.add_to_collaborators(username, permission="admin")
+                        new_repo.add_to_collaborators(username, permission="admin")
+                        c.execute("UPDATE users SET has_repo = 1 WHERE github_username = ?", (username,))
+                        conn.commit()
+                    else:
+                        print(f"[Poller] {username} hasn't accepted the invite yet.")
+                except GithubException as e:
+                    print(f"[Poller] Error processing {username}: {e}")
 
-                    # Update DB
-                    c.execute("UPDATE users SET has_repo = 1 WHERE github_username = ?", (username,))
-                    conn.commit()
-                else:
-                    print(f"[Poller] {username} hasn't accepted the invite yet.")
-            except GithubException as e:
-                print(f"[Poller] Error processing {username}: {e}")
+            conn.close()
 
-        conn.close()
+        except Exception as e:
+            print(f"[Poller] Unexpected error: {e}")
+        finally:
+            # Always sleep regardless of outcome
+            await asyncio.sleep(150)
 
-        await asyncio.sleep(300)  # Wait 5 minutes
 
 
 static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "www"))
