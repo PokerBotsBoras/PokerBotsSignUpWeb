@@ -218,6 +218,7 @@ async def poll_for_new_members():
                         c.execute("SELECT email FROM users WHERE github_username = ?", (username,))
                         row = c.fetchone()
                         if row and row[0]:
+                            logger.info(f"Attempting to send repo created email to {row[0]} for user {username}")
                             send_repo_created_email(row[0], username, repo_name)
 
                     else:
