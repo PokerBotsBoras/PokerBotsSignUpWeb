@@ -214,6 +214,12 @@ async def poll_for_new_members():
                         c.execute("UPDATE users SET has_repo = 1 WHERE github_username = ?", (username,))
                         conn.commit()
                         logger.info(f"Repository '{repo_name}' created and '{username}' added as admin.")
+                        
+                        c.execute("SELECT email FROM users WHERE github_username = ?", (username,))
+                        row = c.fetchone()
+                        if row and row[0]:
+                            send_repo_created_email(row[0], username, repo_name)
+
                     else:
                         logger.info(f"[Poller] {username} hasn't accepted the invite yet.")
                 except GithubException as e:
@@ -278,3 +284,32 @@ async def save_results(
 
 static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "www"))
 app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+
+import smtplib
+from email.message import EmailMessage
+
+def send_repo_created_email(to_email: str, github_username: str, repo_name: str):
+    msg = EmailMessage()
+    msg["Subject"] = "Ditt PokerBots Repository is Redo"
+    msg["From"] = os.getenv("FROM_EMAIL")
+    msg["To"] = to_email
+    respond_email = os.getenv("RESPOND_EMAIL")
+    if respond_email:
+        msg["Reply-To"] = respond_email
+    repo_url = f"https://github.com/{GITHUB_ORG_NAME}/{repo_name}"
+    msg.set_content(
+        f"Hi {github_username},\n\n"
+        f"Your bot repository '{repo_name}' has been created.\n"
+        f"You can access it here: {repo_url}\n\n"
+        "Good luck!"
+    )
+
+    try:
+        with smtplib.SMTP(os.getenv("SMTP_HOST"), int(os.getenv("SMTP_PORT"))) as server:
+            server.starttls()
+            server.login(os.getenv("SMTP_USERNAME"), os.getenv("SMTP_PASSWORD"))
+            server.send_message(msg)
+        logger.info(f"Email sent to {to_email}")
+    except Exception as e:
+        logger.error(f"Failed to send email to {to_email}: {e}")
+
