@@ -9,4 +9,4 @@ venv/
 *.log
 *.db
 .vscode
-
+www/ratings.json
