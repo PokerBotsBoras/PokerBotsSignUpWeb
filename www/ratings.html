@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-black text-white font-mono">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PokerBots Borås Leaderboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="glitch.css">
+  <style>
+    .glitch {
+      animation: glitch 8s infinite;
+      --glitch-strength: 1;
+      --glitch-size: 2px;
+      transition: --glitch-strength 1s linear;
+    }
+
+    /* Make the h1 glitch bigger */
+    h1.glitch {
+      --glitch-size: 6px;
+    }
+
+    .entry {
+      filter: contrast(1.5) brightness(1.2);
+      background: #6d405c;
+      position: relative;
+      /* overflow: hidden; */
+      /* Remove border-radius */
+      /* Add sharp text-shadow with a random dark color (set via JS) */
+      text-shadow: var(--entry-shadow, none);
+    }
+
+    /* Remove the old beat and twitch keyframes/animations */
+
+    body {
+      /* Initial gradient, will be overridden by JS */
+      background: linear-gradient(135deg, #00416a 0%, #799f0c 60%, #ffe000 100%);
+      transition: background 0.5s linear;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-6">
+
+  <div class="w-full max-w-3xl">
+    <h1 class="text-center text-4xl md:text-6xl mb-10 glitch tracking-widest text-fuchsia-400 uppercase">
+      PokerBots Borås Leaderboard
+    </h1>
+
+    <ol id="leaderboard" class="space-y-4 text-lg md:text-2xl"></ol>
+    <div id="loading" class="text-center mt-6 animate-pulse text-gray-100">Fetching data from the void...</div>
+  </div>
+  <!-- Add a global emoji particle container -->
+  <div id="emoji-particles" style="pointer-events:none; position:absolute; left:0; top:0; width:0; height:0; z-index:50;"></div>
+  <script>
+    async function loadLeaderboard() {
+      try {
+        const res = await fetch('./ratings.json');
+        const data = await res.json();
+
+        const sorted = data.sort((a, b) => b.Score - a.Score);
+        const ol = document.getElementById('leaderboard');
+        ol.innerHTML = '';
+
+        let firstEntryLi = null;
+        let heartbeatFrame = null;
+        let heartbeatStart = null;
+        let twitching = false;
+        let twitchTimeout = null;
+        let heartbeatBaseScale = 1.2;
+        let heartbeatTwitch = { x: 0, r: 0 };
+
+        function startHeartbeat(li) {
+          if (!li) return;
+          heartbeatStart = performance.now();
+          function animate(now) {
+            const t = ((now - heartbeatStart) / 1200) % 1;
+            let scale = heartbeatBaseScale;
+            // Color beat logic
+            const colorCenter = "#dd2476";
+            const colorEdge = "#ff512f";
+            let beatPhase = 0;
+
+            if (t < 0.15) {
+              const progress = t / 0.15;
+              const eased = 1 - Math.pow(1 - progress, 3);
+              scale += 0.25 * eased;
+              beatPhase = eased;
+            } else if (t < 0.25) {
+              const progress = (t - 0.15) / 0.10;
+              const eased = Math.pow(progress, 2);
+              scale += 0.25 * (1 - eased);
+              beatPhase = 1 - eased;
+            } else if (t < 0.35) {
+              const progress = (t - 0.25) / 0.10;
+              const eased = 1 - Math.pow(1 - progress, 3);
+              scale += 0.18 * eased;
+              beatPhase = eased * 0.7;
+            } else if (t < 0.45) {
+              const progress = (t - 0.35) / 0.10;
+              const eased = Math.pow(progress, 2);
+              scale += 0.18 * (1 - eased);
+              beatPhase = (1 - eased) * 0.7;
+            }
+            // else: rest
+
+            // Interpolate edge color between colorCenter and colorEdge based on beatPhase
+            function lerpColor(a, b, n) {
+              const ah = a.match(/\w\w/g).map(x => parseInt(x, 16));
+              const bh = b.match(/\w\w/g).map(x => parseInt(x, 16));
+              const rh = ah.map((v, i) => Math.round(v + (bh[i] - v) * n));
+              return `#${rh.map(x => x.toString(16).padStart(2, "0")).join("")}`;
+            }
+            const edgeMix = lerpColor(colorCenter, colorEdge, beatPhase);
+
+            // Set radial gradient for the top entry
+            if (li) {
+              li.style.background = `radial-gradient(circle, ${colorCenter} 0%, ${edgeMix} 100%)`;
+            }
+
+            // Add twitch offset if active
+            let transform = `scale(${scale.toFixed(4)})`;
+            if (heartbeatTwitch.x !== 0 || heartbeatTwitch.r !== 0) {
+              transform += ` translateX(${heartbeatTwitch.x}px) rotate(${heartbeatTwitch.r}deg)`;
+            }
+            li.style.transform = transform;
+            heartbeatFrame = requestAnimationFrame(animate);
+          }
+          heartbeatFrame = requestAnimationFrame(animate);
+        }
+        function stopHeartbeat(li) {
+          if (heartbeatFrame) cancelAnimationFrame(heartbeatFrame);
+          heartbeatFrame = null;
+          heartbeatStart = null;
+          heartbeatTwitch = { x: 0, r: 0 };
+          if (li) li.style.transform = `scale(${heartbeatBaseScale})`;
+        }
+
+        sorted.forEach((entry, idx) => {
+          const li = document.createElement('li');
+          li.className = 'entry px-5 py-3 flex items-center justify-between transition duration-150';
+
+          // Pick a random dark color for the text-shadow
+          const darkColors = [
+            "#873e23", "#9e0f2b", "#17524d", "#410b2a"
+          ];
+          const shadowColor = darkColors[Math.floor(Math.random() * darkColors.length)];
+          li.style.setProperty('--entry-shadow', `2px 2px 0 ${shadowColor}`);
+          li.style.boxShadow = "5px 5px 5px red";
+          // Apply static scale and animated backgrounds for top 3 entries
+          if (idx === 0) {
+            li.style.transform = `scale(${heartbeatBaseScale})`;
+            // Set initial radial background for #1
+            li.style.background = "radial-gradient(circle, #dd2476 0%, #dd2476 100%)";
+            li.style.marginBottom = "40px";
+            firstEntryLi = li;
+          } else if (idx === 1) {
+            li.style.transform = 'scale(1)';
+            // Set initial radial background for #2
+            li.style.background = "radial-gradient(circle, #3ca55c 0%, #3ca55c 100%)";
+          } else if (idx === 2) {
+            li.style.transform = 'scale(0.9)';
+            // Set initial radial background for #3
+            li.style.background = "radial-gradient(circle, #ede574 0%, #ede574 100%)";
+          } else {
+            li.style.transform = 'scale(0.7)';
+          }
+
+          // Generate a nearly-rectangular polygon for clip-path
+          function genPolygon() {
+            // Four corners, each with a slight random offset
+            const tl = [Math.random() * 3, Math.random() * 3];
+            const tr = [100 - Math.random() * 3, Math.random() * 3];
+            const br = [100 - Math.random() * 3, 100 - Math.random() * 3];
+            const bl = [Math.random() * 3, 100 - Math.random() * 3];
+            return `polygon(${tl[0]}% ${tl[1]}%, ${tr[0]}% ${tr[1]}%, ${br[0]}% ${br[1]}%, ${bl[0]}% ${bl[1]}%)`;
+          }
+          li.style.clipPath = genPolygon();
+          li.style.webkitClipPath = li.style.clipPath;
+
+          li.innerHTML = `
+            <span class="text-sm text-fuchsia-300 mr-4">#${idx + 1}</span>
+            <span class="flex-1 text-fuchsia-100 font-bold tracking-wide">${entry.Name}</span>
+            <span class="text-green-400">${entry.Score.toFixed(1)}</span>
+          `;
+
+          // Save reference to first entry
+          if (idx === 0) {
+            firstEntryLi = li;
+          }
+
+          // Add hover event listeners for random transform and glitch effect
+          li.addEventListener('mouseenter', () => {
+            // Calculate base scale for top 3
+            let baseScale = 1;
+            if (idx === 0) baseScale = heartbeatBaseScale;
+            else if (idx === 1) baseScale = 1.12;
+            else if (idx === 2) baseScale = 1.07;
+
+            const scale = (baseScale + 0.2 + Math.random() * 0.1).toFixed(2);
+            const rotate = (Math.random() * 10 - 5).toFixed(1);
+
+            // For top entry, pause heartbeat and apply hover transform
+            if (idx === 0) {
+              stopHeartbeat(li);
+              li.style.transform = `scale(${scale}) rotate(${rotate}deg)`;
+            } else {
+              li.style.transform = `scale(${scale}) rotate(${rotate}deg)`;
+            }
+
+            li.classList.add('glitch');
+            li.style.setProperty('--glitch-strength', 1);
+            li.style.setProperty('--glitch-size', '2px');
+            // Remove any previous timers
+            if (li._glitchTimeout) clearTimeout(li._glitchTimeout);
+            if (li._glitchFadeInterval) clearInterval(li._glitchFadeInterval);
+            if (li._glitchSizeInterval) clearInterval(li._glitchSizeInterval);
+
+            // After 1 second, ramp down glitch size to 0px over 1s
+            setTimeout(() => {
+              let size = 2;
+              li._glitchSizeInterval = setInterval(() => {
+                size -= 0.2;
+                if (size <= 0) {
+                  li.style.setProperty('--glitch-size', '0px');
+                  clearInterval(li._glitchSizeInterval);
+                  li._glitchSizeInterval = null;
+                } else {
+                  li.style.setProperty('--glitch-size', size + 'px');
+                }
+              }, 50);
+            }, 1000);
+
+            // After 3 seconds, fade out the glitch
+            li._glitchTimeout = setTimeout(() => {
+              let strength = 1;
+              li._glitchFadeInterval = setInterval(() => {
+                strength -= 0.05;
+                if (strength <= 0) {
+                  li.style.setProperty('--glitch-strength', 0);
+                  li.classList.remove('glitch');
+                  clearInterval(li._glitchFadeInterval);
+                  li._glitchFadeInterval = null;
+                } else {
+                  li.style.setProperty('--glitch-strength', strength);
+                }
+              }, 50);
+            }, 3000);
+          });
+          li.addEventListener('mouseleave', () => {
+            // Restore static scale for top 3, else reset
+            if (idx === 0) {
+              li.style.transform = `scale(${heartbeatBaseScale})`;
+              startHeartbeat(li);
+            } else if (idx === 1) {
+              li.style.transform = 'scale(1.12)';
+            } else if (idx === 2) {
+              li.style.transform = 'scale(1.07)';
+            } else {
+              li.style.transform = 'scale(0.70)';
+            }
+            li.classList.remove('glitch');
+            li.style.setProperty('--glitch-strength', 1);
+            li.style.setProperty('--glitch-size', '2px');
+            if (li._glitchTimeout) clearTimeout(li._glitchTimeout);
+            if (li._glitchFadeInterval) clearInterval(li._glitchFadeInterval);
+            if (li._glitchSizeInterval) clearInterval(li._glitchSizeInterval);
+          });
+
+          ol.appendChild(li);
+        });
+
+        // Start heartbeat for top entry after DOM is ready
+        if (firstEntryLi) {
+          startHeartbeat(firstEntryLi);
+        }
+
+        // Emoji particle effect for the top entry, but container is outside
+        const emojiContainer = document.getElementById('emoji-particles');
+        function positionEmojiContainer() {
+          if (!firstEntryLi) return;
+          const rect = firstEntryLi.getBoundingClientRect();
+          const parentRect = document.body.getBoundingClientRect();
+          emojiContainer.style.left = rect.left - parentRect.left + 'px';
+          emojiContainer.style.top = rect.top - parentRect.top + 'px';
+          emojiContainer.style.width = rect.width + 'px';
+          emojiContainer.style.height = rect.height + 'px';
+        }
+        // Position on load and on resize/scroll
+        positionEmojiContainer();
+        window.addEventListener('resize', positionEmojiContainer);
+        window.addEventListener('scroll', positionEmojiContainer, true);
+
+        // Clear previous emojis if any
+        emojiContainer.innerHTML = '';
+
+        // Emoji particle logic
+        const emojis = ['❤️','🤖','💜','✨','🃏','🎲','🦾','👾','💎','🔥','⭐','🧠'];
+        function spawnEmoji() {
+          const emoji = document.createElement('span');
+          emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+          emoji.style.position = 'absolute';
+          emoji.style.left = `${Math.random() * 80 + 10}%`;
+          emoji.style.bottom = '0%';
+          emoji.style.fontSize = `${Math.random() * 1.5 + 1.2}rem`;
+          emoji.style.opacity = '1';
+          emoji.style.pointerEvents = 'none';
+          emoji.style.filter = 'drop-shadow(0 0 6px #fff8)';
+          emoji.style.transition = 'transform 0.18s cubic-bezier(.5,2,0,1), opacity 2.2s linear';
+          emoji.style.transform = 'translateY(0px) scale(0)';
+          emojiContainer.appendChild(emoji);
+
+          // Step 1: Pop in and move down a bit, scale up to 1
+          setTimeout(() => {
+            emoji.style.transform = 'translateY(28px) scale(1)';
+          }, 10);
+
+          // Step 2: After a short delay, move up, drift, rotate, and fade out
+          setTimeout(() => {
+            const xMove = (Math.random() - 0.5) * 60;
+            const scale = Math.random() * 0.7 + 0.7;
+            const rotate = Math.random() * 60 - 30;
+            emoji.style.transition = 'transform 2s linear, opacity 2s linear';
+            emoji.style.transform = `translateY(-120px) translateX(${xMove}px) scale(${scale}) rotate(${rotate}deg)`;
+            emoji.style.opacity = '0';
+          }, 200);
+
+          // Remove after animation
+          setTimeout(() => {
+            emoji.remove();
+          }, 2200);
+
+          // --- Twitch effect on top entry ---
+          if (firstEntryLi && !twitching) {
+            twitching = true;
+            // Random twitch offset
+            heartbeatTwitch.x = (Math.random() - 0.5) * 8; // -4 to 4 px
+            heartbeatTwitch.r = (Math.random() - 0.5) * 6; // -3 to 3 deg
+            setTimeout(() => {
+              heartbeatTwitch.x = 0;
+              heartbeatTwitch.r = 0;
+              twitching = false;
+            }, 100);
+          }
+        }
+
+        // Spawn emojis at a regular interval
+        if (firstEntryLi) {
+          setInterval(() => {
+            for (let i = 0; i < Math.floor(Math.random() * 2) + 1; i++) {
+              spawnEmoji();
+            }
+          }, 350);
+        }
+
+        document.getElementById('loading').style.display = 'none';
+      } catch (err) {
+        document.getElementById('loading').textContent = 'Failed to access the ratings -_-';
+        console.error('Error loading leaderboard:', err);
+      }
+    }
+
+    loadLeaderboard();
+
+    // --- Gradient scroll cycling ---
+    (function() {
+      // Gradient color stops
+      const gradients = [
+        ['#00416a', '#799f0c', '#ffe000'],
+        ['#c6ffdd', '#fbd786', '#f7797d']
+      ];
+      // Helper to interpolate two hex colors
+      function lerpColor(a, b, t) {
+        const ah = a.match(/\w\w/g).map(x => parseInt(x, 16));
+        const bh = b.match(/\w\w/g).map(x => parseInt(x, 16));
+        const rh = ah.map((v, i) => Math.round(v + (bh[i] - v) * t));
+        return `#${rh.map(x => x.toString(16).padStart(2, "0")).join("")}`;
+      }
+      function setGradient(t) {
+        // t: 0 = first gradient, 1 = second gradient
+        const stops = gradients[0].map((c, i) => lerpColor(gradients[0][i], gradients[1][i], t));
+        document.body.style.background = `linear-gradient(135deg, ${stops[0]} 0%, ${stops[1]} 60%, ${stops[2]} 100%)`;
+      }
+      function onScroll() {
+        const scrollY = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        let t = docHeight > 0 ? scrollY / docHeight : 0;
+        t = Math.max(0, Math.min(1, t));
+        setGradient(t);
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', onScroll);
+      // Set initial gradient
+      setGradient(0);
+    })();
+  </script>
+</body>
+</html>

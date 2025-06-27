@@ -24,7 +24,7 @@ def get_final_ratings(results_list):
     """
     Takes a list of results like:
     [{"BotA": "A", "BotB": "B", "BotAWins": 52, "BotBWins": 48}, ...]
-    and returns a list of tuples: [("A", 1512.3), ("B", 1487.7), ...]
+    and returns a list of dicts: [{"Name": "A", "Score": 1512.3}, {"Name": "B", "Score": 1487.7}, ...]
     """
     ratings = defaultdict(lambda: 1500)
 
@@ -38,4 +38,7 @@ def get_final_ratings(results_list):
         ra_new, rb_new = update_ratings(ra, rb, a_wins, b_wins)
         ratings[a], ratings[b] = ra_new, rb_new
 
-    return sorted(ratings.items(), key=lambda x: x[1], reverse=True)
+    return [
+        {"Name": name, "Score": score}
+        for name, score in sorted(ratings.items(), key=lambda x: x[1], reverse=True)
+    ]
