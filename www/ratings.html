@@ -35,20 +35,24 @@
       /* Initial gradient, will be overridden by JS */
       background: linear-gradient(135deg, #00416a 0%, #799f0c 60%, #ffe000 100%);
       transition: background 0.5s linear;
+      overflow-x: hidden; /* Prevent horizontal scrollbar */
     }
   </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-6">
 
+  <!-- absolute top-left link -->
+  <a href="." class="absolute top-4 left-4 text-fuchsia-300 hover:text-fuchsia-100 text-sm font-bold z-50 opacity-30">&larr;tillbak</a>
+
   <div class="w-full max-w-3xl">
     <h1 class="text-center text-4xl md:text-6xl mb-10 glitch tracking-widest text-fuchsia-400 uppercase">
-      PokerBots Borås Leaderboard
+      PokerBots Borås Ledarbräda
     </h1>
 
     <ol id="leaderboard" class="space-y-4 text-lg md:text-2xl"></ol>
     <div id="loading" class="text-center mt-6 animate-pulse text-gray-100">Fetching data from the void...</div>
   </div>
-  <!-- Add a global emoji particle container -->
+  <!-- global emoji particle container -->
   <div id="emoji-particles" style="pointer-events:none; position:absolute; left:0; top:0; width:0; height:0; z-index:50;"></div>
   <script>
     async function loadLeaderboard() {
@@ -315,11 +319,12 @@
 
           // Step 2: After a short delay, move up, drift, rotate, and fade out
           setTimeout(() => {
+            const yMove = (Math.random() - 0.5) * 120;
             const xMove = (Math.random() - 0.5) * 60;
             const scale = Math.random() * 0.7 + 0.7;
             const rotate = Math.random() * 60 - 30;
             emoji.style.transition = 'transform 2s linear, opacity 2s linear';
-            emoji.style.transform = `translateY(-120px) translateX(${xMove}px) scale(${scale}) rotate(${rotate}deg)`;
+            emoji.style.transform = `translateY(${yMove}px) translateX(${xMove}px) scale(${scale}) rotate(${rotate}deg)`;
             emoji.style.opacity = '0';
           }, 200);
 
@@ -348,7 +353,7 @@
             for (let i = 0; i < Math.floor(Math.random() * 2) + 1; i++) {
               spawnEmoji();
             }
-          }, 350);
+          }, Math.random() * 2000 + 600 );
         }
 
         document.getElementById('loading').style.display = 'none';

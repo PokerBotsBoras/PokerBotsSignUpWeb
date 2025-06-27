@@ -1,17 +1,57 @@
 <!DOCTYPE html>
 <html lang="sv">
 <head>
-  <meta charset="UTF-8">
-  <title>Borås PokerBots Challenge</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Borås PokerBots</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>Välkommen till Borås PokerBots Challenge</h1>
-  <p>
-    För att delta, behöver du autentisera dig med GitHub. Efter autentisering blir du automatiskt inbjuden till vår GitHub-organisation.
-  </p>
-  <button onclick="window.location.href='/auth/login'">
-    Logga in med GitHub
-  </button>
-  <p>Efter du accepterat inbjudan (kolla din mail) vänta 10 minuter så kommer du ha ett nytt template-repo i <a href="https://github.com/PokerBotsBoras/" target="_blank">PokerBotsBoras Organisationen</a>. Det nya repot dyker inte upp bland dina egna repon, utan i organisationen.</p>
+<body class="bg-gray-900 text-white font-mono min-h-screen flex flex-col items-center p-6 space-y-10">
+
+  <header class="text-center">
+    <h1 class="text-4xl md:text-6xl font-bold mb-4">Borås PokerBots 🃏</h1>
+    <p class="text-lg max-w-xl mx-auto">
+      För att delta, logga in med GitHub. Efteråt får du en inbjudan till vår organisation.
+      Acceptera den (kolla din mail), vänta 10 minuter, så dyker ett nytt template-repo upp i 
+      <a href="https://github.com/PokerBotsBoras/" class="underline text-blue-400" target="_blank">PokerBotsBoras</a>.
+    </p>
+    <button onclick="window.location.href='/auth/login'" class="mt-6 bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded text-white">
+      Logga in med GitHub
+    </button>
+  </header>
+
+  <section class="w-full max-w-2xl">
+    <h2 class="text-2xl font-semibold mb-4 text-center">Leaderboard</h2>
+    <ol id="leaderboard" class="space-y-3 text-lg bg-gray-800 rounded p-4 shadow-lg"></ol>
+    <p id="loading" class="text-center text-sm text-gray-400 mt-4">Laddar leaderboard...</p>
+  </section>
+
+  <script>
+    async function loadLeaderboard() {
+      try {
+        const res = await fetch('./ratings.json?cb=' + Date.now());
+        const data = await res.json();
+        const sorted = data.sort((a, b) => b.Score - a.Score);
+        const ol = document.getElementById('leaderboard');
+        ol.innerHTML = '';
+        sorted.forEach((entry, idx) => {
+          const li = document.createElement('li');
+          li.className = 'flex justify-between bg-gray-700 p-3 rounded';
+          li.innerHTML = `
+            <span class="text-yellow-400">#${idx + 1}</span>
+            <span class="text-white flex-1 text-center">${entry.Name}</span>
+            <span class="text-green-400">${entry.Score.toFixed(1)}</span>
+          `;
+          ol.appendChild(li);
+        });
+        document.getElementById('loading').style.display = 'none';
+      } catch (err) {
+        document.getElementById('loading').textContent = 'Misslyckades att ladda leaderboard.';
+        console.error(err);
+      }
+    }
+
+    loadLeaderboard();
+  </script>
 </body>
 </html>
