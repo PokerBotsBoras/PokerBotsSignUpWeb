@@ -22,6 +22,12 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+# Ensure persistence directory exists
+PERSISTENCE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "persistence"))
+if not os.path.exists(PERSISTENCE_DIR):
+    logger.info(f"Persistence directory '{PERSISTENCE_DIR}' does not exist. Creating it.")
+    os.makedirs(PERSISTENCE_DIR, exist_ok=True)
+
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET")
 GITHUB_REDIRECT_URI = os.getenv("GITHUB_REDIRECT_URI")
