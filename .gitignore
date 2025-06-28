@@ -11,3 +11,4 @@ venv/
 .vscode
 www/ratings.json
 persistence/
+deploy_env.sh
