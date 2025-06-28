@@ -28,8 +28,8 @@ GITHUB_REDIRECT_URI = os.getenv("GITHUB_REDIRECT_URI")
 GITHUB_ORG_NAME = "PokerBotsBoras"
 GITHUB_BOT_TOKEN = os.getenv("GITHUB_POKERBOTS_ORG_SECRET")
 
-DB_PATH = "users.db"
-RESULTS_DB_PATH = "results.json"
+DB_PATH = os.path.join(os.path.dirname(__file__), "..", "persistence", "users.db")
+RESULTS_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "persistence", "results.json")
 
 # TinyDB setup
 results_db = TinyDB(RESULTS_DB_PATH)
@@ -278,3 +278,8 @@ async def save_results(
 
 static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "www"))
 app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
