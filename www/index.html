@@ -34,7 +34,9 @@
       try {
         const res = await fetch('./ratings.json?cb=' + Date.now());
         const data = await res.json();
-        const sorted = data.sort((a, b) => b.Score - a.Score);
+        const scores = data.Scores || [];
+        const date = data.Date;
+        const sorted = scores.sort((a, b) => b.Score - a.Score);
         const ol = document.getElementById('leaderboard');
         ol.innerHTML = '';
         sorted.slice(0, 3).forEach((entry, idx) => {
@@ -48,6 +50,29 @@
           ol.appendChild(li);
         });
         document.getElementById('loading').style.display = 'none';
+        // Show date if available
+        let dateElem = document.getElementById('ratings-date');
+        if (!dateElem) {
+          dateElem = document.createElement('p');
+          dateElem.id = 'ratings-date';
+          dateElem.className = 'text-center text-sm text-gray-400 mt-2';
+          ol.parentNode.insertBefore(dateElem, ol);
+        }
+        if (date) {
+          // Convert to local time string (handle Zulu/UTC)
+          let d = new Date(date);
+          if (isNaN(d.getTime())) {
+            // fallback: try replacing Z with +00:00
+            d = new Date(date.replace('Z', '+00:00'));
+          }
+          const local = d.toLocaleString('sv-SE', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+          });
+          dateElem.textContent = `senaste matchen: ${local}`;
+        } else {
+          dateElem.textContent = '';
+        }
       } catch (err) {
         document.getElementById('loading').textContent = 'Misslyckades att ladda topp 3.';
         console.error(err);

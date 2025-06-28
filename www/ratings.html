@@ -49,6 +49,9 @@
       PokerBots Borås Ledarbräda
     </h1>
 
+    <!-- Date display element -->
+    <p id="ratings-date" class="text-center text-sm text-gray-300 mb-4"></p>
+
     <ol id="leaderboard" class="space-y-4 text-lg md:text-2xl"></ol>
     <div id="loading" class="text-center mt-6 animate-pulse text-gray-100">Fetching data from the void...</div>
   </div>
@@ -59,10 +62,35 @@
       try {
         const res = await fetch('./ratings.json?cb=' + Date.now());
         const data = await res.json();
+        const scores = data.Scores || [];
+        const date = data.Date;
 
-        const sorted = data.sort((a, b) => b.Score - a.Score);
+        const sorted = scores.sort((a, b) => b.Score - a.Score);
         const ol = document.getElementById('leaderboard');
         ol.innerHTML = '';
+
+        // Show date if available
+        let dateElem = document.getElementById('ratings-date');
+        if (!dateElem) {
+          dateElem = document.createElement('p');
+          dateElem.id = 'ratings-date';
+          dateElem.className = 'text-center text-sm text-gray-300 mb-4';
+          ol.parentNode.insertBefore(dateElem, ol);
+        }
+        if (date) {
+          // Convert to local time string (handle Zulu/UTC)
+          let d = new Date(date);
+          if (isNaN(d.getTime())) {
+            d = new Date(date.replace('Z', '+00:00'));
+          }
+          const local = d.toLocaleString('sv-SE', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+          });
+          dateElem.textContent = `senaste matchen: ${local}`;
+        } else {
+          dateElem.textContent = '';
+        }
 
         let firstEntryLi = null;
         let heartbeatFrame = null;
