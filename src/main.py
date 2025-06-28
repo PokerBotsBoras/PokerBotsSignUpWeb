@@ -273,8 +273,12 @@ async def save_results(
 
     # Save to ../www/ratings.json
     ratings_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "www", "ratings.json"))
+    ratings_data = {
+        "Date": payload.Date,
+        "Scores": final_ratings
+    }
     with open(ratings_path, "w") as f:
-        json.dump(final_ratings, f, indent=2)
+        json.dump(ratings_data, f, indent=2)
 
     return {
         "status": "ok",
