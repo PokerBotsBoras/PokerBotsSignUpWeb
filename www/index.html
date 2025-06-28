@@ -9,11 +9,11 @@
 <body class="bg-gray-900 text-white font-mono min-h-screen flex flex-col items-center p-6 space-y-10">
 
   <header class="text-center">
-    <h1 class="text-4xl md:text-6xl font-bold mb-4">Borås PokerBots 🃏</h1>
+    <h1 class="text-4xl md:text-6xl font-bold mb-4">PokerBots Borås 🃏</h1>
     <p class="text-lg max-w-xl mx-auto">
       För att delta, logga in med GitHub. Efteråt får du en inbjudan till vår organisation.
-      Acceptera den (kolla din mail), vänta 10 minuter, så dyker ett nytt template-repo upp i 
-      <a href="https://github.com/PokerBotsBoras/" class="underline text-blue-400" target="_blank">PokerBotsBoras</a>.
+      Acceptera den (kolla din mail), vänta 10 minuter, så dyker ditt nya bot-repo upp i 
+      <a href="https://github.com/PokerBotsBoras/" class="underline text-blue-400" target="_blank">PokerBotsBoras</a> 
     </p>
     <button onclick="window.location.href='/auth/login'" class="mt-6 bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded text-white">
       Logga in med GitHub
@@ -21,9 +21,12 @@
   </header>
 
   <section class="w-full max-w-2xl">
-    <h2 class="text-2xl font-semibold mb-4 text-center">Leaderboard</h2>
+    <h2 class="text-2xl font-semibold mb-4 text-center">Topp 3</h2>
     <ol id="leaderboard" class="space-y-3 text-lg bg-gray-800 rounded p-4 shadow-lg"></ol>
-    <p id="loading" class="text-center text-sm text-gray-400 mt-4">Laddar leaderboard...</p>
+    <p id="loading" class="text-center text-sm text-gray-400 mt-4">Laddar topp 3...</p>
+    <p class="text-center mt-2">
+      <a href="ratings.html" class="underline text-blue-400 hover:text-blue-200">Visa alla poäng &rarr;</a>
+    </p>
   </section>
 
   <script>
@@ -34,7 +37,7 @@
         const sorted = data.sort((a, b) => b.Score - a.Score);
         const ol = document.getElementById('leaderboard');
         ol.innerHTML = '';
-        sorted.forEach((entry, idx) => {
+        sorted.slice(0, 3).forEach((entry, idx) => {
           const li = document.createElement('li');
           li.className = 'flex justify-between bg-gray-700 p-3 rounded';
           li.innerHTML = `
@@ -46,7 +49,7 @@
         });
         document.getElementById('loading').style.display = 'none';
       } catch (err) {
-        document.getElementById('loading').textContent = 'Misslyckades att ladda leaderboard.';
+        document.getElementById('loading').textContent = 'Misslyckades att ladda topp 3.';
         console.error(err);
       }
     }
